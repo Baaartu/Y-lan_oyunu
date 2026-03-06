@@ -8,7 +8,7 @@ PENCERE_YUKSEKLIK = 600
 GRID_BOYUT = 20
 HUCRE_SAYISI_X = PENCERE_GENISLIK // GRID_BOYUT
 HUCRE_SAYISI_Y = PENCERE_YUKSEKLIK // GRID_BOYUT
-FPS = 15
+FPS = 10
 
 # Renkler
 SIYAH = (15, 15, 25)
@@ -34,9 +34,11 @@ DONUS_TABLOSU = {
 
 
 class Yilan:
-    def __init__(self):
+    def __init__(self, engeller=[], harita_tipi=0):
         orta_x = HUCRE_SAYISI_X // 2
         orta_y = HUCRE_SAYISI_Y // 2
+        
+        # Harita 3 (Labirent) başlangıç noktası daha özel olabilir ancak şimdilik merkezde kalsın
         self.govde = [
             (orta_x, orta_y),
             (orta_x, orta_y + 1),
@@ -44,6 +46,8 @@ class Yilan:
         ]
         self.yon = YUKARI
         self.buyume = False
+        self.engeller = engeller
+        self.harita_tipi = harita_tipi
 
     def don(self, taraf):
         """Göreceli dönüş: 'sol' veya 'sag'"""
@@ -56,7 +60,15 @@ class Yilan:
     def hareket_et(self):
         bas_x, bas_y = self.govde[0]
         yon_x, yon_y = self.yon
-        yeni_bas = (bas_x + yon_x, bas_y + yon_y)
+        yeni_bas_x = bas_x + yon_x
+        yeni_bas_y = bas_y + yon_y
+        
+        # Harita 2 (Kutu - Wrap Around) 
+        if self.harita_tipi == 1:
+            yeni_bas_x %= HUCRE_SAYISI_X
+            yeni_bas_y %= HUCRE_SAYISI_Y
+            
+        yeni_bas = (yeni_bas_x, yeni_bas_y)
 
         self.govde.insert(0, yeni_bas)
 
@@ -86,6 +98,13 @@ class Yilan:
 
     def duvar_carpma(self):
         bas_x, bas_y = self.govde[0]
+        if (bas_x, bas_y) in self.engeller:
+            return True
+            
+        # Harita 2 (Kutu) ise duvar çarpması yoktur, engellere çarpar
+        if self.harita_tipi == 1:
+            return False
+            
         return (
             bas_x < 0
             or bas_x >= HUCRE_SAYISI_X
@@ -98,8 +117,9 @@ class Yilan:
 
 
 class YemYoneticisi:
-    def __init__(self):
+    def __init__(self, engeller=[]):
         self.yemler = []
+        self.engeller = engeller
 
     def yemleri_olustur(self, yilan_govde):
         """Ekrandaki yem sayısını 2-4 arası rastgele bir değere tamamla."""
@@ -115,7 +135,7 @@ class YemYoneticisi:
         bos_hucreler = []
         for x in range(HUCRE_SAYISI_X):
             for y in range(HUCRE_SAYISI_Y):
-                if (x, y) not in yilan_govde and (x, y) not in self.yemler:
+                if (x, y) not in yilan_govde and (x, y) not in self.yemler and (x, y) not in self.engeller:
                     bos_hucreler.append((x, y))
 
         if bos_hucreler:
@@ -143,6 +163,93 @@ class YemYoneticisi:
             )
 
 
+# --- HARİTALAR ---
+def harita_olustur(harita_tipi):
+    engeller = []
+    cikis = None
+    
+    if harita_tipi == 1:
+        # Harita 2: Kutu (Kenarlardan geçmeli, rastgele 2x2 engeller)
+        eklenecek_engel_sayisi = 4
+        while eklenecek_engel_sayisi > 0:
+            rx = random.randint(2, HUCRE_SAYISI_X - 4)
+            ry = random.randint(2, HUCRE_SAYISI_Y - 4)
+            yeni_engel = [(rx, ry), (rx+1, ry), (rx, ry+1), (rx+1, ry+1)]
+            
+            # Üst üste gelmesini veya merkeze denk gelmesini önle
+            merkez_x, merkez_y = HUCRE_SAYISI_X // 2, HUCRE_SAYISI_Y // 2
+            if not any(e in engeller for e in yeni_engel) and not any(abs(e[0] - merkez_x) < 3 and abs(e[1] - merkez_y) < 3 for e in yeni_engel):
+                engeller.extend(yeni_engel)
+                eklenecek_engel_sayisi -= 1
+                
+    elif harita_tipi == 2:
+        # Harita 3: Daha Oynanabilir Basit Labirent
+        harita_taslagi = [
+            "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "XC         X                 X",
+            "X  XXXXX   X   XXXXXXXXXXX   X",
+            "X  X       X               X X",
+            "X  X   XXXXX   XXXXXXXXX   X X",
+            "X  X       X           X   X X",
+            "X  X   X   X   XXXXX   X   X X",
+            "X  X   X   X       X   X   X X",
+            "X      X   XXXXX   X   X     X",
+            "XXXXX  X           X   X   XXX",
+            "X      X   XXXXXXXXX   X     X",
+            "X  XXXXX               XXXX  X",
+            "X          XXXX    X         X",
+            "X  XXXXXXXX        XXXXXXX   X",
+            "X          X   X             X",
+            "XXXXXXX    X   XXXXX   XXXXXXX",
+            "X          X       X         X",
+            "X  XXXXXXXXXXXXX   XXXXXXX   X",
+            "X                  X         X",
+            "X  XXXXX   XXXXXXXXX   XXXX  X",
+            "X      X           X         X",
+            "XXXX   XXXXXXXXX   X   XXXXXXX",
+            "X              X   X         X",
+            "X  XXXXXXXXX   X   XXXXXXX   X",
+            "X          X                 X",
+            "X  XXXXX   XXXXXXXXXXXXX   XXX",
+            "X      X                   X X",
+            "XXXX   XXXXXXXXXXXXXXXXXXX   X",
+            "X                            X",
+            "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        ]
+        
+        for y, satir in enumerate(harita_taslagi):
+            if y >= len(harita_taslagi): continue
+            for x, char in enumerate(satir):
+                if x >= HUCRE_SAYISI_X: continue
+                if char == 'X':
+                    engeller.append((x, y))
+                elif char == 'C':
+                    cikis = (x, y)
+
+        # Başlangıç odası: Yılanın doğduğu merkezin çevresini temizliyoruz (15,15 çevresi 6x6 boşluk)
+        merkez_guvenli_alan = [(gx, gy) for gx in range(12, 18) for gy in range(12, 18)]
+        engeller = [e for e in engeller if e not in merkez_guvenli_alan]
+
+    return list(set(engeller)), cikis
+
+
+def harita_ciz(ekran, engeller, cikis):
+    """Duvarları ve çıkış noktasını ekrana çizer."""
+    for engel in engeller:
+        x = engel[0] * GRID_BOYUT
+        y = engel[1] * GRID_BOYUT
+        rect = pygame.Rect(x, y, GRID_BOYUT, GRID_BOYUT)
+        pygame.draw.rect(ekran, (100, 100, 120), rect)
+        
+    if cikis:
+        cx, cy = cikis
+        x = cx * GRID_BOYUT
+        y = cy * GRID_BOYUT
+        rect = pygame.Rect(x, y, GRID_BOYUT, GRID_BOYUT)
+        pygame.draw.rect(ekran, (255, 215, 0), rect) # Altın sarısı çıkış
+        pygame.draw.rect(ekran, (200, 100, 0), rect, 3) # Çerçeve
+
+
 def skor_cizdir(ekran, skor):
     """Ekrana skoru yazdır."""
     font = pygame.font.SysFont("Arial", 24, bold=True)
@@ -158,8 +265,8 @@ def grid_ciz(ekran):
         pygame.draw.line(ekran, GRID_RENK, (0, y), (PENCERE_GENISLIK, y))
 
 
-def oyun_bitti_ekrani(ekran, skor):
-    """Oyun bitti ekranını göster."""
+def oyun_bitti_ekrani(ekran, skor, kazandin_mi=False):
+    """Oyun bitti veya kazanma ekranını göster."""
     # Yarı saydam karartma
     karartma = pygame.Surface((PENCERE_GENISLIK, PENCERE_YUKSEKLIK))
     karartma.set_alpha(150)
@@ -169,8 +276,15 @@ def oyun_bitti_ekrani(ekran, skor):
     font_buyuk = pygame.font.SysFont("Arial", 48, bold=True)
     font_kucuk = pygame.font.SysFont("Arial", 24)
 
-    # "OYUN BİTTİ" yazısı
-    metin1 = font_buyuk.render("OYUN BITTI", True, KIRMIZI)
+    # Başlık yazısı
+    if kazandin_mi:
+        baslik = "KAZANDINIZ!"
+        renk_baslik = (255, 215, 0)
+    else:
+        baslik = "OYUN BITTI"
+        renk_baslik = KIRMIZI
+
+    metin1 = font_buyuk.render(baslik, True, renk_baslik)
     rect1 = metin1.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 - 50))
     ekran.blit(metin1, rect1)
 
@@ -180,7 +294,7 @@ def oyun_bitti_ekrani(ekran, skor):
     ekran.blit(metin_skor, rect_skor)
 
     # Yeniden başlatma bilgisi
-    metin2 = font_kucuk.render("Tekrar: SPACE | Cikis: ESC", True, (200, 200, 200))
+    metin2 = font_kucuk.render("Menuye Don: TAB | Tekrar: SPACE | Cikis: ESC", True, (200, 200, 200))
     rect2 = metin2.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 + 50))
     ekran.blit(metin2, rect2)
 
@@ -188,35 +302,42 @@ def oyun_bitti_ekrani(ekran, skor):
 
 
 def baslangic_menusu(ekran, saat):
-    """Oyun başlangıç menüsünü gösterir."""
+    """Oyun başlangıç menüsünü ve harita seçimini gösterir."""
     menu_aktif = True
-    secili_secenek = 0  # 0: Başla, 1: Çık
+    alt_menu_aktif = False
+    secili_secenek = 0
+    secili_harita = 0
     
     font_baslik = pygame.font.SysFont("Arial", 60, bold=True)
     font_secenek = pygame.font.SysFont("Arial", 36, bold=True)
     font_bilgi = pygame.font.SysFont("Arial", 18)
+    
+    secenekler_ana = ["Başla", "Harita Seç", "Çık"]
+    secenekler_harita = ["Klasik", "Kutu", "Labirent", "Geri"]
     
     while menu_aktif:
         ekran.fill(SIYAH)
         grid_ciz(ekran)
         
         # Başlık
-        metin_baslik = font_baslik.render("YILAN OYUNU", True, ACIK_YESIL)
+        baslik_metin = "HARITA SECIMI" if alt_menu_aktif else "YILAN OYUNU"
+        metin_baslik = font_baslik.render(baslik_metin, True, ACIK_YESIL)
         rect_baslik = metin_baslik.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 3))
         ekran.blit(metin_baslik, rect_baslik)
         
-        # Seçenekler
-        renk_basla = KIRMIZI if secili_secenek == 0 else (200, 200, 200)
-        sembol_basla = "> " if secili_secenek == 0 else ""
-        metin_basla = font_secenek.render(f"{sembol_basla}Başla", True, renk_basla)
-        rect_basla = metin_basla.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2))
-        ekran.blit(metin_basla, rect_basla)
+        guncel_secenekler = secenekler_harita if alt_menu_aktif else secenekler_ana
         
-        renk_cik = KIRMIZI if secili_secenek == 1 else (200, 200, 200)
-        sembol_cik = "> " if secili_secenek == 1 else ""
-        metin_cik = font_secenek.render(f"{sembol_cik}Çık", True, renk_cik)
-        rect_cik = metin_cik.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 + 60))
-        ekran.blit(metin_cik, rect_cik)
+        for i, sec in enumerate(guncel_secenekler):
+            renk = KIRMIZI if secili_secenek == i else (200, 200, 200)
+            sembol = "> " if secili_secenek == i else ""
+            
+            # Seçili haritayı belirt
+            if alt_menu_aktif and i < 3 and secili_harita == i:
+                sec += " (Secili)"
+                
+            metin = font_secenek.render(f"{sembol}{sec}", True, renk)
+            rect = metin.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 + i * 50))
+            ekran.blit(metin, rect)
         
         # Kullanım bilgisi
         metin_bilgi = font_bilgi.render("Yon Tuslari: Yukari/Asagi | Secim: ENTER veya SPACE", True, (120, 120, 120))
@@ -231,16 +352,29 @@ def baslangic_menusu(ekran, saat):
                 sys.exit()
                 
             if event.type == pygame.KEYDOWN:
+                guncel_uzunluk = len(guncel_secenekler)
                 if event.key == pygame.K_UP:
-                    secili_secenek = (secili_secenek - 1) % 2
+                    secili_secenek = (secili_secenek - 1) % guncel_uzunluk
                 elif event.key == pygame.K_DOWN:
-                    secili_secenek = (secili_secenek + 1) % 2
+                    secili_secenek = (secili_secenek + 1) % guncel_uzunluk
                 elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                    if secili_secenek == 0:
-                        return  # Menü döngüsünden çık, oyuna başla
+                    if not alt_menu_aktif:
+                        if secili_secenek == 0:  # Başla
+                            return secili_harita
+                        elif secili_secenek == 1:  # Harita Seç
+                            alt_menu_aktif = True
+                            secili_secenek = 0
+                        elif secili_secenek == 2:  # Çık
+                            pygame.quit()
+                            sys.exit()
                     else:
-                        pygame.quit()
-                        sys.exit()  # Oyundan çık
+                        if secili_secenek == 3:  # Geri
+                            alt_menu_aktif = False
+                            secili_secenek = 1
+                        else:  # Harita seçildi
+                            secili_harita = secili_secenek
+                            alt_menu_aktif = False
+                            secili_secenek = 0
                         
         saat.tick(FPS)
 
@@ -251,70 +385,100 @@ def ana_dongu():
     pygame.display.set_caption("Yılan Oyunu")
     saat = pygame.time.Clock()
 
-    baslangic_menusu(ekran, saat)
+    # Oyun her yeniden başladığında (TAB ile) tüm döngüyü sıfırlamak için ana bir while döngüsü
+    while True:
+        secilen_harita_tipi = baslangic_menusu(ekran, saat)
+        engeller, cikis = harita_olustur(secilen_harita_tipi)
 
-    yilan = Yilan()
-    yem_yoneticisi = YemYoneticisi()
-    yem_yoneticisi.yemleri_olustur(yilan.govde)
-    
-    skor = 0
+        yilan = Yilan(engeller, secilen_harita_tipi)
+        yem_yoneticisi = YemYoneticisi(engeller)
+        
+        # Harita 3 (Labirent) hızı yavaşlat
+        gecerli_fps = 8 if secilen_harita_tipi == 2 else 10
+        
+        # Harita 3 (Labirent) ise yem oluşturma
+        if secilen_harita_tipi != 2:
+            yem_yoneticisi.yemleri_olustur(yilan.govde)
+        
+        skor = 0
 
-    oyun_aktif = True
-    oyun_bitti = False
+        oyun_aktif = True
+        oyun_bitti = False
+        kazandin = False
 
-    while oyun_aktif:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                oyun_aktif = False
+        while oyun_aktif:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
 
-            if event.type == pygame.KEYDOWN:
-                if oyun_bitti:
-                    if event.key == pygame.K_SPACE:
-                        # Oyunu yeniden başlat
-                        yilan = Yilan()
-                        yem_yoneticisi = YemYoneticisi()
+                if event.type == pygame.KEYDOWN:
+                    if oyun_bitti:
+                        if event.key == pygame.K_SPACE:
+                            # Aynı haritada yeniden başlat
+                            yilan = Yilan(engeller, secilen_harita_tipi)
+                            yem_yoneticisi = YemYoneticisi(engeller)
+                            if secilen_harita_tipi != 2:
+                                yem_yoneticisi.yemleri_olustur(yilan.govde)
+                            skor = 0
+                            oyun_bitti = False
+                            kazandin = False
+                        elif event.key == pygame.K_TAB:
+                            # Menüye dön (mevcut while oyun_aktif döngüsünü bitirir, en dış while baştan başlar)
+                            oyun_aktif = False
+                        elif event.key == pygame.K_ESCAPE:
+                            pygame.quit()
+                            sys.exit()
+                    else:
+                        if event.key == pygame.K_LEFT:
+                            yilan.don("sol")
+                        elif event.key == pygame.K_RIGHT:
+                            yilan.don("sag")
+                        elif event.key == pygame.K_ESCAPE:
+                            pygame.quit()
+                            sys.exit()
+
+            if not oyun_bitti:
+                # Yılanı hareket ettir
+                yilan.hareket_et()
+
+                # Çarpışma kontrolü
+                if yilan.duvar_carpma() or yilan.kendine_carpma():
+                    oyun_bitti = True
+                    kazandin = False
+                
+                # Labirent kazanma kontrolü
+                if secilen_harita_tipi == 2 and not oyun_bitti:
+                    if yilan.govde[0] == cikis:
+                        oyun_bitti = True
+                        kazandin = True
+                
+                # Yem yeme kontrolü (Labirent değilse)
+                if not oyun_bitti and secilen_harita_tipi != 2:
+                    if yem_yoneticisi.yem_kontrol(yilan.govde[0]):
+                        yilan.buyut()
                         yem_yoneticisi.yemleri_olustur(yilan.govde)
-                        skor = 0
-                        oyun_bitti = False
-                    elif event.key == pygame.K_ESCAPE:
-                        oyun_aktif = False
-                else:
-                    if event.key == pygame.K_LEFT:
-                        yilan.don("sol")
-                    elif event.key == pygame.K_RIGHT:
-                        yilan.don("sag")
-                    elif event.key == pygame.K_ESCAPE:
-                        oyun_aktif = False
+                        skor += 10
 
-        if not oyun_bitti:
-            # Yılanı hareket ettir
-            yilan.hareket_et()
+                # Çizim
+                ekran.fill(SIYAH)
+                grid_ciz(ekran)
+                harita_ciz(ekran, engeller, cikis)
+                
+                if secilen_harita_tipi != 2:
+                    yem_yoneticisi.cizdir(ekran)
+                    
+                yilan.cizdir(ekran)
+                
+                # Skoru ekrana yazdır (Oyun devam ediyorsa veya bitmemişse de arka planda görünsün)
+                skor_cizdir(ekran, skor)
 
-            # Çarpışma kontrolü
-            if yilan.duvar_carpma() or yilan.kendine_carpma():
-                oyun_bitti = True
-            else:
-                # Yem yeme kontrolü
-                if yem_yoneticisi.yem_kontrol(yilan.govde[0]):
-                    yilan.buyut()
-                    yem_yoneticisi.yemleri_olustur(yilan.govde)
-                    skor += 10
+                if oyun_bitti:
+                    oyun_bitti_ekrani(ekran, skor, kazandin)
 
-            # Çizim
-            ekran.fill(SIYAH)
-            grid_ciz(ekran)
-            yem_yoneticisi.cizdir(ekran)
-            yilan.cizdir(ekran)
-            
-            # Skoru ekrana yazdır (Oyun devam ediyorsa veya bitmemişse de arka planda görünsün)
-            skor_cizdir(ekran, skor)
+                pygame.display.flip()
 
-            if oyun_bitti:
-                oyun_bitti_ekrani(ekran, skor)
-
-            pygame.display.flip()
-
-        saat.tick(FPS)
+            saat.tick(gecerli_fps)
 
     pygame.quit()
     sys.exit()

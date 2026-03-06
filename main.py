@@ -143,6 +143,13 @@ class YemYoneticisi:
             )
 
 
+def skor_cizdir(ekran, skor):
+    """Ekrana skoru yazdır."""
+    font = pygame.font.SysFont("Arial", 24, bold=True)
+    metin = font.render(f"Skor: {skor}", True, (255, 255, 255))
+    ekran.blit(metin, (10, 10))
+
+
 def grid_ciz(ekran):
     """Arka plan grid çizgileri."""
     for x in range(0, PENCERE_GENISLIK, GRID_BOYUT):
@@ -151,7 +158,7 @@ def grid_ciz(ekran):
         pygame.draw.line(ekran, GRID_RENK, (0, y), (PENCERE_GENISLIK, y))
 
 
-def oyun_bitti_ekrani(ekran):
+def oyun_bitti_ekrani(ekran, skor):
     """Oyun bitti ekranını göster."""
     # Yarı saydam karartma
     karartma = pygame.Surface((PENCERE_GENISLIK, PENCERE_YUKSEKLIK))
@@ -164,12 +171,17 @@ def oyun_bitti_ekrani(ekran):
 
     # "OYUN BİTTİ" yazısı
     metin1 = font_buyuk.render("OYUN BITTI", True, KIRMIZI)
-    rect1 = metin1.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 - 30))
+    rect1 = metin1.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 - 50))
     ekran.blit(metin1, rect1)
+
+    # Skor yazısı
+    metin_skor = font_kucuk.render(f"Skor: {skor}", True, ACIK_YESIL)
+    rect_skor = metin_skor.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2))
+    ekran.blit(metin_skor, rect_skor)
 
     # Yeniden başlatma bilgisi
     metin2 = font_kucuk.render("Tekrar: SPACE | Cikis: ESC", True, (200, 200, 200))
-    rect2 = metin2.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 + 30))
+    rect2 = metin2.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 + 50))
     ekran.blit(metin2, rect2)
 
     pygame.display.flip()
@@ -184,6 +196,8 @@ def ana_dongu():
     yilan = Yilan()
     yem_yoneticisi = YemYoneticisi()
     yem_yoneticisi.yemleri_olustur(yilan.govde)
+    
+    skor = 0
 
     oyun_aktif = True
     oyun_bitti = False
@@ -200,6 +214,7 @@ def ana_dongu():
                         yilan = Yilan()
                         yem_yoneticisi = YemYoneticisi()
                         yem_yoneticisi.yemleri_olustur(yilan.govde)
+                        skor = 0
                         oyun_bitti = False
                     elif event.key == pygame.K_ESCAPE:
                         oyun_aktif = False
@@ -223,15 +238,19 @@ def ana_dongu():
                 if yem_yoneticisi.yem_kontrol(yilan.govde[0]):
                     yilan.buyut()
                     yem_yoneticisi.yemleri_olustur(yilan.govde)
+                    skor += 10
 
             # Çizim
             ekran.fill(SIYAH)
             grid_ciz(ekran)
             yem_yoneticisi.cizdir(ekran)
             yilan.cizdir(ekran)
+            
+            # Skoru ekrana yazdır (Oyun devam ediyorsa veya bitmemişse de arka planda görünsün)
+            skor_cizdir(ekran, skor)
 
             if oyun_bitti:
-                oyun_bitti_ekrani(ekran)
+                oyun_bitti_ekrani(ekran, skor)
 
             pygame.display.flip()
 

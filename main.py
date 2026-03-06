@@ -8,7 +8,7 @@ PENCERE_YUKSEKLIK = 600
 GRID_BOYUT = 20
 HUCRE_SAYISI_X = PENCERE_GENISLIK // GRID_BOYUT
 HUCRE_SAYISI_Y = PENCERE_YUKSEKLIK // GRID_BOYUT
-FPS = 10
+FPS = 15
 
 # Renkler
 SIYAH = (15, 15, 25)
@@ -187,11 +187,71 @@ def oyun_bitti_ekrani(ekran, skor):
     pygame.display.flip()
 
 
+def baslangic_menusu(ekran, saat):
+    """Oyun başlangıç menüsünü gösterir."""
+    menu_aktif = True
+    secili_secenek = 0  # 0: Başla, 1: Çık
+    
+    font_baslik = pygame.font.SysFont("Arial", 60, bold=True)
+    font_secenek = pygame.font.SysFont("Arial", 36, bold=True)
+    font_bilgi = pygame.font.SysFont("Arial", 18)
+    
+    while menu_aktif:
+        ekran.fill(SIYAH)
+        grid_ciz(ekran)
+        
+        # Başlık
+        metin_baslik = font_baslik.render("YILAN OYUNU", True, ACIK_YESIL)
+        rect_baslik = metin_baslik.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 3))
+        ekran.blit(metin_baslik, rect_baslik)
+        
+        # Seçenekler
+        renk_basla = KIRMIZI if secili_secenek == 0 else (200, 200, 200)
+        sembol_basla = "> " if secili_secenek == 0 else ""
+        metin_basla = font_secenek.render(f"{sembol_basla}Başla", True, renk_basla)
+        rect_basla = metin_basla.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2))
+        ekran.blit(metin_basla, rect_basla)
+        
+        renk_cik = KIRMIZI if secili_secenek == 1 else (200, 200, 200)
+        sembol_cik = "> " if secili_secenek == 1 else ""
+        metin_cik = font_secenek.render(f"{sembol_cik}Çık", True, renk_cik)
+        rect_cik = metin_cik.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK // 2 + 60))
+        ekran.blit(metin_cik, rect_cik)
+        
+        # Kullanım bilgisi
+        metin_bilgi = font_bilgi.render("Yon Tuslari: Yukari/Asagi | Secim: ENTER veya SPACE", True, (120, 120, 120))
+        rect_bilgi = metin_bilgi.get_rect(center=(PENCERE_GENISLIK // 2, PENCERE_YUKSEKLIK - 30))
+        ekran.blit(metin_bilgi, rect_bilgi)
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+                
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    secili_secenek = (secili_secenek - 1) % 2
+                elif event.key == pygame.K_DOWN:
+                    secili_secenek = (secili_secenek + 1) % 2
+                elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                    if secili_secenek == 0:
+                        return  # Menü döngüsünden çık, oyuna başla
+                    else:
+                        pygame.quit()
+                        sys.exit()  # Oyundan çık
+                        
+        saat.tick(FPS)
+
+
 def ana_dongu():
     pygame.init()
     ekran = pygame.display.set_mode((PENCERE_GENISLIK, PENCERE_YUKSEKLIK))
     pygame.display.set_caption("Yılan Oyunu")
     saat = pygame.time.Clock()
+
+    baslangic_menusu(ekran, saat)
 
     yilan = Yilan()
     yem_yoneticisi = YemYoneticisi()
